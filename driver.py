@@ -62,6 +62,29 @@ def type_check(item_to_check):
 def handle_ts_defined_line():
     print('hi')
 
+
+def buildContructor(params, className):
+    cname = className.replace('class', '').replace('{', '').strip() #TODO pass in already formatted
+    contructor_string = cname + '({'
+    for i in params:
+        contructor_string += 'this.'+i+', '
+    contructor_string += '});'
+    contructor_string = contructor_string.strip().replace(' ', '').replace('?', '')
+    return contructor_string
+
+def get_var_name(possible_name):
+    " ".join(possible_name.split())
+    most_recent_space = 0
+    most_most_recent_space = 0
+    for i in range(0, len(possible_name)):
+        if possible_name[i] == ' ':
+            most_recent_space = most_most_recent_space
+            most_most_recent_space = i
+        if possible_name[i] == '=':
+            print(possible_name[most_recent_space:most_most_recent_space])
+            print(most_most_recent_space, most_recent_space)
+    return possible_name[most_recent_space:most_most_recent_space]
+
 def ts_to_dart(dir_name, file_name):
     formatted_path = dir_name+'\\'+file_name
     dump_path = DUMP_DIR+file_name.replace(TS,DART)
@@ -70,15 +93,20 @@ def ts_to_dart(dir_name, file_name):
     try:
         file = open(formatted_path, 'r')
         dump_file = open(dump_path, 'w')
+        params = []
+        current_class_name = ''
         for line in file:
             dart_string = ''
+            current_var_name = ''
             if 'import' in line or '//' in line: 
                 continue
-            if '}' in line:
+            if '}' in line and len(line) < 5: # close class
+                dart_string += buildContructor(params, current_class_name)+'\n'
                 dart_string += line
             if 'class' in line and "{" in line: # allows people to have variables named classes
                  # convert to dart class dec syntax
                 dart_string += 'class ' + line.split('class')[1] + '\n'
+                current_class_name = dart_string.replace('{', '') 
             else:
                 items = line.split(':')
                 #no type was declared so rearragne keywords
@@ -109,6 +137,8 @@ def ts_to_dart(dir_name, file_name):
                             # replace private keyword with _
                             dart_string += decs[0].replace(PRIVATE, '_')
                         
+                       
+                        current_var_name =  get_var_name(line)
                         dart_string += " = "+decs[1]
                         print(dart_string)
 
@@ -118,18 +148,21 @@ def ts_to_dart(dir_name, file_name):
                 else:
                     # type was declared
                     ts_type = items[1].replace(';', '').replace('\n','').strip()
-                    if '\{\}' in ts_type:
-                        print('found object')
-                    elif 'Array' in ts_type and '<' in ts_type and '>' in ts_type:
+                    print(ts_type)
+                    if 'Array' in ts_type and '<' in ts_type and '>' in ts_type:
                         gen_type = ts_type.replace('Array','').replace('<','').replace('>','')
-                        dart_type = LIST+"<"+TS_TO_DART_TYPES[gen_type]+"> "
+                        dart_type = LIST+"<"+TS_TO_DART_TYPES[gen_type]+"> " # possible error
                     else:
-                        dart_type =  TS_TO_DART_TYPES[ts_type]
-
+                        try:
+                            dart_type =  TS_TO_DART_TYPES[ts_type]
+                        except KeyError:
+                            dart_type = 'dynamic'
                     print(dart_type)
                     dart_string += dart_type + items[0]+';\n'
-
-            dump_file.write(dart_string)
+                    current_var_name = items[0]
+            if len(current_var_name) > 0:
+                params.append(current_var_name)
+            dump_file.write(dart_string.replace('?',''))
         file.close()
     except IOError:
         print('Error opening file')
