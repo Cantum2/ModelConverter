@@ -1,0 +1,6 @@
+class  SubscriptionPlan {
+
+}
+class  TimePrice {
+
+}
